@@ -1,0 +1,34 @@
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#f5f7fb;color:#222a5c}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 24px;background:#222a5c;color:#fff}
+header h1{margin:0;font-size:1.3rem}
+nav{display:flex;gap:6px}
+nav button{background:transparent;color:#fff;border:1px solid #fff5}
+nav button.on{background:#8a2b8c;border-color:#8a2b8c}
+main{max-width:900px;margin:0 auto;padding:20px}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px #0001}
+h2{margin-top:0;color:#8a2b8c}
+.fila{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;font-size:.85rem;gap:4px;font-weight:600}
+input{padding:8px;border:1px solid #c5cae0;border-radius:6px;font-size:1rem}
+button{padding:9px 16px;border-radius:8px;border:1px solid #8a2b8c;background:#fff;color:#8a2b8c;font-weight:600;cursor:pointer}
+button.primario{background:#8a2b8c;color:#fff}
+button:disabled{opacity:.4;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.hab{display:flex;flex-direction:column;gap:4px;text-align:left;color:#222a5c;border-color:#c5cae0;padding:14px}
+.hab.sel{border:2px solid #8a2b8c;background:#f8ecf8}
+.hab em{font-style:normal;color:#3b8a00}.hab.ocupada em{color:#c0392b}
+.preview{margin-top:16px;padding:12px;background:#f8ecf8;border-radius:8px}
+.total{font-weight:700;font-size:1.1rem}
+.aviso{background:#fff4e5;padding:8px 12px;border-radius:8px;font-size:.85rem}
+.error{background:#fde8e8;color:#b42318;padding:10px;border-radius:8px}
+.cargando{color:#8a2b8c}
+.badge{font-size:.7rem;padding:3px 8px;border-radius:10px;background:#ddd;vertical-align:middle}
+.badge.CONFIRMADA{background:#fff1c2}.badge.CHECK_IN{background:#c8f0c8}.badge.CHECK_OUT{background:#ddd}
+.llave{background:#eef;padding:10px;border-radius:8px}
+table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #e3e6f2}td:last-child{text-align:right}
+tr.total td{font-weight:700;font-size:1.1rem}
+.nota{color:#777;font-size:.8rem}
+@media(max-width:600px){.form{grid-template-columns:1fr}}
+@media print{header,button,.aviso{display:none}}

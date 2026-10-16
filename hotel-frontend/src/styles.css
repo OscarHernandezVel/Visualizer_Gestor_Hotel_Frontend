@@ -32,3 +32,5 @@ tr.total td{font-weight:700;font-size:1.1rem}
 .nota{color:#777;font-size:.8rem}
 @media(max-width:600px){.form{grid-template-columns:1fr}}
 @media print{header,button,.aviso{display:none}}
+.badge.CREATED{background:#fff1c2}.badge.CHECKED_IN{background:#c8f0c8}.badge.CHECKED_OUT,.badge.CANCELLED{background:#ddd}
+.llave code{word-break:break-all}

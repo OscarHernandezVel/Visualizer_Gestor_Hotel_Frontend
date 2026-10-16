@@ -1,21 +1,28 @@
-import { useState } from "react";
-import { api, SERVICIOS, MOCK } from "./api";
+import { useEffect, useState } from "react";
+import { api, MOCK } from "./api";
 
-const cop = (n) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+const usd = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 const hoy = () => new Date().toISOString().slice(0, 10);
+const TIPOS = { SINGLE: "Sencilla", DOUBLE: "Doble", SUITE: "Suite" };
+const ESTADOS = { CREATED: "Creada", CHECKED_IN: "Check-in", CHECKED_OUT: "Check-out", CANCELLED: "Cancelada" };
+const TEMP = { HIGH: "temporada alta", LOW: "temporada baja" };
+const codigoDe = (id) => "RES-" + String(id).padStart(5, "0");
 
 export default function App() {
   const [vista, setVista] = useState("buscar");
   const [busq, setBusq] = useState({ entrada: hoy(), salida: "", huespedes: 1 });
   const [habs, setHabs] = useState(null);
   const [sel, setSel] = useState(null);
-  const [precio, setPrecio] = useState(null);
+  const [cotiz, setCotiz] = useState(null);
   const [reserva, setReserva] = useState(null);
   const [factura, setFactura] = useState(null);
-  const [huesped, setHuesped] = useState({ nombre: "", email: "", telefono: "", documento: "" });
+  const [catalogo, setCatalogo] = useState([]);
+  const [g, setG] = useState({ guestName: "", guestDocument: "", guestEmail: "", guestPhone: "" });
   const [codigo, setCodigo] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => { api.servicios().then(setCatalogo).catch((e) => setError(e.message)); }, []);
 
   const run = async (fn) => {
     setError(""); setCargando(true);
@@ -23,22 +30,28 @@ export default function App() {
   };
 
   const buscar = (e) => { e.preventDefault(); run(async () => {
-    setSel(null); setPrecio(null); setHabs(await api.buscar(busq)); }); };
+    setSel(null); setCotiz(null); setHabs(await api.buscar(busq)); }); };
 
   const elegir = (h) => run(async () => {
-    setSel(h); setPrecio(await api.precio({ habitacionId: h.id, entrada: busq.entrada, salida: busq.salida }));
+    setSel(h);
+    setCotiz(await api.cotizar({ roomId: h.id, checkInDate: busq.entrada, checkOutDate: busq.salida }));
   });
 
   const reservar = (e) => { e.preventDefault(); run(async () => {
-    const r = await api.crear({ habitacionId: sel.id, entrada: busq.entrada, salida: busq.salida, huesped });
-    setReserva(r); setVista("gestion"); }); };
+    const r = await api.crear({ roomId: sel.id, checkInDate: busq.entrada, checkOutDate: busq.salida, ...g });
+    setReserva(r); setFactura(null); setVista("gestion"); }); };
 
   const accion = (fn) => run(async () => setReserva(await fn()));
+  const checkout = () => run(async () => {
+    setReserva(await api.checkout(reserva.id));
+    setFactura(await api.factura(reserva.id)); setVista("factura"); });
   const verFactura = () => run(async () => { setFactura(await api.factura(reserva.id)); setVista("factura"); });
   const abrir = (e) => { e.preventDefault(); run(async () => {
-    const id = Number(codigo.replace(/\D/g, "")); setReserva(await api.obtener(id)); setVista("gestion"); }); };
+    const r = await api.obtener(Number(codigo.replace(/\D/g, "")));
+    setReserva(r); setFactura(null); setVista("gestion"); }); };
 
-  const h = reserva?.habitacion;
+  const st = reserva?.reservationStatus;
+  const activa = st === "CREATED" || st === "CHECKED_IN";
   return (
     <>
       <header>
@@ -61,7 +74,7 @@ export default function App() {
               <form className="fila" onSubmit={buscar}>
                 <label>Entrada<input type="date" min={hoy()} required value={busq.entrada} onChange={(e) => setBusq({ ...busq, entrada: e.target.value })} /></label>
                 <label>Salida<input type="date" min={busq.entrada} required value={busq.salida} onChange={(e) => setBusq({ ...busq, salida: e.target.value })} /></label>
-                <label>Huéspedes<input type="number" min="1" max="6" value={busq.huespedes} onChange={(e) => setBusq({ ...busq, huespedes: +e.target.value })} /></label>
+                <label>Huéspedes<input type="number" min="1" max="4" value={busq.huespedes} onChange={(e) => setBusq({ ...busq, huespedes: +e.target.value })} /></label>
                 <button className="primario">Buscar</button>
               </form>
             </section>
@@ -71,32 +84,32 @@ export default function App() {
                 <h2>2. Selecciona tu habitación</h2>
                 <div className="grid">
                   {habs.map((x) => (
-                    <button key={x.id} disabled={!x.disponible} onClick={() => elegir(x)}
-                      className={"hab " + (sel?.id === x.id ? "sel " : "") + (x.disponible ? "" : "ocupada")}>
-                      <strong>Hab. {x.numero} · {x.tipo}</strong>
-                      <span>Hasta {x.capacidad} huésped(es)</span>
-                      <span>Desde {cop(x.precioBase)}/noche</span>
-                      <em>{x.disponible ? "Disponible" : "No disponible"}</em>
+                    <button key={x.id} disabled={!x.available} onClick={() => elegir(x)}
+                      className={"hab " + (sel?.id === x.id ? "sel " : "") + (x.available ? "" : "ocupada")}>
+                      <strong>Hab. {x.roomNumber} · {TIPOS[x.roomType]}</strong>
+                      <span>Hasta {x.capacity} huésped(es)</span>
+                      <span>Base {usd(x.basePrice)}/noche</span>
+                      <em>{x.available ? "Disponible" : "No disponible"}</em>
                     </button>
                   ))}
                   {habs.length === 0 && <p>No hay habitaciones para esa capacidad.</p>}
                 </div>
-                {sel && precio && (
+                {sel && cotiz && (
                   <div className="preview">
                     <h3>Precio dinámico</h3>
-                    <p>{precio.noches} noche(s): {precio.nochesAlta} en temporada alta (+30%) y {precio.nochesBaja} en baja.</p>
-                    <p className="total">Total alojamiento: {cop(precio.total)}</p>
+                    <p>{cotiz.totalNights} noche(s) en <b>{TEMP[cotiz.season]}</b> · {usd(cotiz.nightlyRate)} por noche.</p>
+                    <p className="total">Total alojamiento: {usd(cotiz.lodgingSubtotal)}</p>
                   </div>
                 )}
               </section>
             )}
 
-            {sel && precio && (
+            {sel && cotiz && (
               <section className="card">
                 <h2>3. Datos del huésped</h2>
                 <form className="form" onSubmit={reservar}>
-                  {[["nombre", "Nombre completo", "text"], ["documento", "Documento", "text"], ["email", "Correo", "email"], ["telefono", "Teléfono", "tel"]].map(([k, l, t]) => (
-                    <label key={k}>{l}<input type={t} required value={huesped[k]} onChange={(e) => setHuesped({ ...huesped, [k]: e.target.value })} /></label>
+                  {[["guestName", "Nombre completo", "text", true], ["guestDocument", "Documento", "text", true], ["guestEmail", "Correo", "email", true], ["guestPhone", "Teléfono", "tel", false]].map(([k, l, t, req]) => (
+                    <label key={k}>{l}<input type={t} required={req} value={g[k]} onChange={(e) => setG({ ...g, [k]: e.target.value })} /></label>
                   ))}
                   <button className="primario">Confirmar reserva</button>
                 </form>
@@ -115,42 +128,44 @@ export default function App() {
 
         {vista === "gestion" && reserva && (
           <section className="card">
-            <h2>Reserva {reserva.codigo} <span className={"badge " + reserva.estado}>{reserva.estado.replace("_", "-")}</span></h2>
-            <p>Hab. {h.numero} ({h.tipo}) · {reserva.entrada} → {reserva.salida} · {reserva.huesped.nombre}</p>
-            <p>Alojamiento: <b>{cop(reserva.alojamiento.total)}</b></p>
+            <h2>Reserva {codigoDe(reserva.id)} <span className={"badge " + st}>{ESTADOS[st]}</span></h2>
+            <p>Hab. {reserva.room.roomNumber} ({TIPOS[reserva.room.roomType]}) · {reserva.checkInDate} → {reserva.checkOutDate} · {reserva.guestName}</p>
+            <p>Alojamiento ({reserva.totalNights} noche(s), {TEMP[reserva.season]}): <b>{usd(reserva.lodgingSubtotal)}</b></p>
 
             <h3>Servicios adicionales</h3>
             <div className="fila">
-              {SERVICIOS.map((s) => (
-                <button key={s.id} disabled={reserva.estado === "CHECK_OUT"} onClick={() => accion(() => api.agregarServicio(reserva.id, s.id))}>
-                  + {s.nombre} ({cop(s.precio)})
+              {catalogo.map((s) => (
+                <button key={s.id} disabled={!activa} onClick={() => accion(() => api.agregarServicio(reserva.id, s.id, 1))}>
+                  + {s.name} ({usd(s.cost)})
                 </button>
               ))}
             </div>
-            <ul>{reserva.servicios.map((s, i) => <li key={i}>{s.nombre} — {cop(s.precio)}</li>)}
-              {reserva.servicios.length === 0 && <li>Sin servicios agregados.</li>}</ul>
+            <ul>
+              {reserva.services.map((s) => <li key={s.id}>{s.serviceName} × {s.quantity} — {usd(s.subtotal)}</li>)}
+              {reserva.services.length === 0 && <li>Sin servicios agregados.</li>}
+            </ul>
 
-            {reserva.llaveDigital && <p className="llave">🔑 Llave digital: <code>{reserva.llaveDigital}</code></p>}
+            {st === "CHECKED_IN" && reserva.digitalKeyUuid && <p className="llave">🔑 Llave digital: <code>{reserva.digitalKeyUuid}</code></p>}
 
             <div className="fila">
-              <button className="primario" disabled={reserva.estado !== "CONFIRMADA"} onClick={() => accion(() => api.checkin(reserva.id))}>Check-in</button>
-              <button className="primario" disabled={reserva.estado !== "CHECK_IN"} onClick={() => accion(() => api.checkout(reserva.id))}>Check-out</button>
-              <button onClick={verFactura}>Ver factura</button>
+              <button className="primario" disabled={st !== "CREATED"} onClick={() => accion(() => api.checkin(reserva.id))}>Check-in</button>
+              <button className="primario" disabled={st !== "CHECKED_IN"} onClick={checkout}>Check-out</button>
+              <button disabled={st !== "CHECKED_OUT"} onClick={verFactura}>Ver factura</button>
             </div>
+            {st !== "CHECKED_OUT" && <p className="nota">La factura se genera al hacer check-out.</p>}
           </section>
         )}
 
-        {vista === "factura" && factura && (
+        {vista === "factura" && factura && reserva && (
           <section className="card factura">
-            <h2>Factura {factura.numero}</h2>
-            <p>{factura.reserva.huesped.nombre} · Reserva {factura.reserva.codigo}</p>
+            <h2>Factura #{factura.id}</h2>
+            <p>{reserva.guestName} · Reserva {codigoDe(reserva.id)} · Hab. {reserva.room.roomNumber} · Emitida {new Date(factura.issueDate).toLocaleString("es-CO")}</p>
             <table>
               <tbody>
-                <tr><td>Alojamiento (Hab. {factura.reserva.habitacion.numero})</td><td>{cop(factura.alojamiento)}</td></tr>
-                {factura.servicios.map((s, i) => <tr key={i}><td>{s.nombre}</td><td>{cop(s.precio)}</td></tr>)}
-                <tr><td>Subtotal</td><td>{cop(factura.subtotal)}</td></tr>
-                <tr><td>IVA 19%</td><td>{cop(factura.iva)}</td></tr>
-                <tr className="total"><td>Total</td><td>{cop(factura.total)}</td></tr>
+                <tr><td>Alojamiento ({reserva.totalNights} noche(s), {TEMP[reserva.season]})</td><td>{usd(factura.lodgingSubtotal)}</td></tr>
+                {reserva.services.map((s) => <tr key={s.id}><td>{s.serviceName} × {s.quantity}</td><td>{usd(s.subtotal)}</td></tr>)}
+                <tr><td>Total servicios</td><td>{usd(factura.servicesTotal)}</td></tr>
+                <tr className="total"><td>Total a pagar</td><td>{usd(factura.grandTotal)}</td></tr>
               </tbody>
             </table>
             <p className="nota">Factura generada por el servidor.</p>
